@@ -12,6 +12,7 @@ import "github.com/makasim/batcher"
 func main() {
 	b := batcher.New[string](10)
 
+	// add items to the batch concurrently
 	batch := b.Batch(`foo`)
 	if batch == nil {
 		// the foo item goes to someone else batch
