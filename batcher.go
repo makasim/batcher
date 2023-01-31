@@ -1,78 +1,93 @@
 package batcher
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
-type Batcher[Item any] struct {
-	collectorCh chan Item
-	promoteT    *time.Timer
+type batch[Item any] struct {
+	sync.Mutex
+	items []Item
 
-	counter int64
-	batch   int64
-	active  int64
+	blockCh  chan struct{}
+	promoteT *time.Timer
 }
 
-func New[Item any](batch int64) *Batcher[Item] {
-	if batch <= 0 {
+type Batcher[Item any] struct {
+	batch   int64
+	count   int64
+	batches [100]*batch[Item]
+}
+
+func New[Item any](size int64) *Batcher[Item] {
+	if size <= 0 {
 		panic("batch must be greater than zero")
 	}
 
-	return &Batcher[Item]{
-		collectorCh: make(chan Item, batch*10),
-		promoteT:    time.NewTimer(time.Millisecond * 100),
-		batch:       batch,
+	b := &Batcher[Item]{
+		batch: size,
 	}
+
+	for i := range b.batches {
+		b.batches[i] = &batch[Item]{
+			promoteT: time.NewTimer(time.Millisecond * 100),
+		}
+	}
+
+	return b
 }
 
 func (b *Batcher[Item]) Batch(item Item) []Item {
-	idx := atomic.AddInt64(&b.counter, 1)
+	idx := atomic.AddInt64(&b.count, 1)
 
-	if idx%(b.batch) == 0 {
-		return b.collect(item)
+	batchIdx := int64(idx/b.batch) % 100
+
+	bb := b.batches[batchIdx]
+
+	bb.Lock()
+	resetTimer(bb.promoteT)
+	bb.items = append(bb.items, item)
+
+	if bb.blockCh != nil {
+		close(bb.blockCh)
+		bb.blockCh = nil
 	}
+
+	if len(bb.items) == int(b.batch) {
+		items := append([]Item{}, bb.items...)
+		bb.items = bb.items[:0]
+		bb.Unlock()
+		return items
+	}
+
+	unblockCh := make(chan struct{})
+	bb.blockCh = unblockCh
+	bb.Unlock()
 
 	select {
-	case b.collectorCh <- item:
+	case <-unblockCh:
 		return nil
-	case <-b.promoteT.C:
-		return b.collect(item)
+	case <-bb.promoteT.C:
+		bb.Lock()
+		defer bb.Unlock()
+
+		if bb.blockCh != nil {
+			close(bb.blockCh)
+			bb.blockCh = nil
+		}
+
+		items := append([]Item{}, bb.items...)
+		bb.items = bb.items[:0]
+		return items
 	}
 }
 
-func (b *Batcher[Item]) collect(item Item) []Item {
-	if cnt := atomic.AddInt64(&b.active, 1); cnt == 1 {
-		stopAndDrainTimer(b.promoteT)
-	}
-
-	defer func() {
-		if cnt := atomic.AddInt64(&b.active, -1); cnt == 0 {
-			stopAndDrainTimer(b.promoteT)
-			b.promoteT.Reset(time.Millisecond * 100)
-		}
-	}()
-
-	res := make([]Item, 0, b.batch)
-	res = append(res, item)
-	for {
-		if int64(len(res)) >= b.batch {
-			return res
-		}
-
-		select {
-		case item := <-b.collectorCh:
-			res = append(res, item)
-		default:
-			return res
-		}
-	}
-}
-
-func stopAndDrainTimer(t *time.Timer) {
+func resetTimer(t *time.Timer) {
 	t.Stop()
 	select {
 	case <-t.C:
 	default:
 	}
+	t.Reset(time.Millisecond * 200)
 }

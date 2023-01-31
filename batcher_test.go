@@ -1,6 +1,7 @@
 package batcher_test
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -17,16 +18,16 @@ func TestOne(t *testing.T) {
 func TestFive(t *testing.T) {
 	b := batcher.New[int](10)
 
-	go func() {
-		time.Sleep(time.Millisecond * 10)
+	for i := 0; i < 4; i++ {
+		go func(i int) {
+			require.Nil(t, b.Batch(i))
+		}(i)
+	}
 
-		require.Nil(t, b.Batch(2))
-		require.Nil(t, b.Batch(3))
-		require.Nil(t, b.Batch(4))
-		require.Nil(t, b.Batch(5))
-	}()
+	time.Sleep(time.Millisecond * 50)
+	res := b.Batch(4)
 
-	res := b.Batch(1)
-
+	sort.Ints(res)
 	require.Len(t, res, 5)
+	require.Equal(t, []int{0, 1, 2, 3, 4}, res)
 }
