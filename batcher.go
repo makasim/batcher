@@ -27,7 +27,8 @@ func New[Item any](size int64, timeout time.Duration) *Batcher[Item] {
 	}
 
 	b := &Batcher[Item]{
-		batch: size,
+		batch:   size,
+		timeout: timeout,
 	}
 
 	for i := range b.batches {
