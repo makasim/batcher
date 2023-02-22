@@ -48,14 +48,14 @@ func (b *Batcher[Item]) Batch(item Item) []Item {
 	bb := b.batches[batchIdx]
 
 	bb.Lock()
-	resetTimer(bb.timeoutT, b.timeout)
-	bb.items = append(bb.items, item)
-
 	if bb.blockCh != nil {
 		close(bb.blockCh)
 		bb.blockCh = nil
 	}
 
+	resetTimer(bb.timeoutT, b.timeout)
+
+	bb.items = append(bb.items, item)
 	if len(bb.items) == int(b.batch) {
 		items := append([]Item{}, bb.items...)
 		bb.items = bb.items[:0]
