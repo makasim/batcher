@@ -10,8 +10,7 @@ type batch[Item any] struct {
 	sync.Mutex
 	items []Item
 
-	blockCh  chan struct{}
-	timeoutT *time.Timer
+	blockCh chan struct{}
 }
 
 type Batcher[Item any] struct {
@@ -25,15 +24,19 @@ func New[Item any](size int64, timeout time.Duration) *Batcher[Item] {
 	if size <= 0 {
 		panic("batch must be greater than zero")
 	}
+	if timeout <= 0 {
+		panic("timeout must be greater than zero")
+	}
 
 	b := &Batcher[Item]{
 		batch:   size,
 		timeout: timeout,
+		count:   -1,
 	}
 
 	for i := range b.batches {
 		b.batches[i] = &batch[Item]{
-			timeoutT: time.NewTimer(timeout),
+			items: make([]Item, 0, b.batch),
 		}
 	}
 
@@ -53,8 +56,6 @@ func (b *Batcher[Item]) Batch(item Item) []Item {
 		bb.blockCh = nil
 	}
 
-	resetTimer(bb.timeoutT, b.timeout)
-
 	bb.items = append(bb.items, item)
 	if len(bb.items) == int(b.batch) {
 		items := append([]Item{}, bb.items...)
@@ -67,10 +68,13 @@ func (b *Batcher[Item]) Batch(item Item) []Item {
 	bb.blockCh = blockCh
 	bb.Unlock()
 
+	timeoutT := acquireTimer(b.timeout)
+	defer releaseTimer(timeoutT)
+
 	select {
 	case <-blockCh:
 		return nil
-	case <-bb.timeoutT.C:
+	case <-timeoutT.C:
 		bb.Lock()
 		defer bb.Unlock()
 		if bb.blockCh != nil {
@@ -82,15 +86,4 @@ func (b *Batcher[Item]) Batch(item Item) []Item {
 		bb.items = bb.items[:0]
 		return items
 	}
-}
-
-func resetTimer(t *time.Timer, d time.Duration) {
-	if !t.Stop() {
-		select {
-		case <-t.C:
-		default:
-
-		}
-	}
-	t.Reset(d)
 }

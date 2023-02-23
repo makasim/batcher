@@ -20,7 +20,7 @@ func BenchmarkNoBatch(b *testing.B) {
 }
 
 func BenchmarkBatchSizeOne(b *testing.B) {
-	bb := batcher.New[int](1, time.Millisecond)
+	bb := batcher.New[int](1, time.Millisecond*100)
 
 	b.SetParallelism(10)
 	b.ReportAllocs()
@@ -32,7 +32,7 @@ func BenchmarkBatchSizeOne(b *testing.B) {
 }
 
 func BenchmarkBatchSizeTwo(b *testing.B) {
-	bb := batcher.New[int](2, time.Millisecond)
+	bb := batcher.New[int](2, time.Millisecond*100)
 
 	b.SetParallelism(10)
 	b.ReportAllocs()
@@ -44,7 +44,7 @@ func BenchmarkBatchSizeTwo(b *testing.B) {
 }
 
 func BenchmarkBatchSizeThree(b *testing.B) {
-	bb := batcher.New[int](3, time.Millisecond)
+	bb := batcher.New[int](3, time.Millisecond*100)
 
 	b.SetParallelism(10)
 	b.ReportAllocs()
@@ -56,7 +56,7 @@ func BenchmarkBatchSizeThree(b *testing.B) {
 }
 
 func BenchmarkBatchSizeFive(b *testing.B) {
-	bb := batcher.New[int](5, time.Millisecond)
+	bb := batcher.New[int](5, time.Millisecond*100)
 
 	b.SetParallelism(10)
 	b.ReportAllocs()
@@ -68,7 +68,7 @@ func BenchmarkBatchSizeFive(b *testing.B) {
 }
 
 func BenchmarkBatchSizeTen(b *testing.B) {
-	bb := batcher.New[int](10, time.Millisecond)
+	bb := batcher.New[int](10, time.Millisecond*100)
 
 	b.SetParallelism(10)
 	b.ReportAllocs()
@@ -80,7 +80,7 @@ func BenchmarkBatchSizeTen(b *testing.B) {
 }
 
 func BenchmarkBatchSizeTwenty(b *testing.B) {
-	bb := batcher.New[int](20, time.Millisecond)
+	bb := batcher.New[int](20, time.Millisecond*100)
 
 	b.SetParallelism(10)
 	b.ReportAllocs()
@@ -92,7 +92,7 @@ func BenchmarkBatchSizeTwenty(b *testing.B) {
 }
 
 func BenchmarkBatchSizeThirty(b *testing.B) {
-	bb := batcher.New[int](30, time.Millisecond)
+	bb := batcher.New[int](30, time.Millisecond*100)
 
 	b.SetParallelism(10)
 	b.ReportAllocs()
