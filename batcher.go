@@ -14,10 +14,11 @@ type batch[Item any] struct {
 }
 
 type Batcher[Item any] struct {
-	batch   int64
-	timeout time.Duration
-	count   int64
-	batches [100]*batch[Item]
+	size       int64
+	count      int64
+	buffer     []Item
+	rangeStart []chan int64
+	timeout    time.Duration
 }
 
 func New[Item any](size int64, timeout time.Duration) *Batcher[Item] {
@@ -29,15 +30,15 @@ func New[Item any](size int64, timeout time.Duration) *Batcher[Item] {
 	}
 
 	b := &Batcher[Item]{
-		batch:   size,
-		timeout: timeout,
-		count:   -1,
+		size:       size,
+		count:      -1,
+		buffer:     make([]Item, size*100),
+		rangeStart: make([]chan int64, size*100),
+		timeout:    timeout,
 	}
 
-	for i := range b.batches {
-		b.batches[i] = &batch[Item]{
-			items: make([]Item, 0, b.batch),
-		}
+	for i := range b.rangeStart {
+		b.rangeStart[i] = make(chan int64)
 	}
 
 	return b
@@ -45,45 +46,55 @@ func New[Item any](size int64, timeout time.Duration) *Batcher[Item] {
 
 func (b *Batcher[Item]) Batch(item Item) []Item {
 	idx := atomic.AddInt64(&b.count, 1)
+	bufferIdx := idx % int64(len(b.buffer))
 
-	batchIdx := int64(idx/b.batch) % 100
+	//log.Println(idx, bufferIdx)
+	b.buffer[bufferIdx] = item
 
-	bb := b.batches[batchIdx]
+	start := bufferIdx
+	t := acquireTimer(b.timeout)
+	defer releaseTimer(t)
 
-	bb.Lock()
-	if bb.blockCh != nil {
-		close(bb.blockCh)
-		bb.blockCh = nil
-	}
+	for {
+		//log.Printf("item: %v; bufferIdx: %v; safeRangeStart: %v", item, bufferIdx, b.safeRangeStart(start))
+		select {
+		case start = <-b.rangeStart[b.safeRangeStart(start)]:
+			//log.Println("got start", start)
+			//log.Println(2)
+			//log.Println(bufferIdx - start)
+			if bufferIdx-start >= (b.size - 1) {
 
-	bb.items = append(bb.items, item)
-	if len(bb.items) == int(b.batch) {
-		items := append([]Item{}, bb.items...)
-		bb.items = bb.items[:0]
-		bb.Unlock()
-		return items
-	}
+				res := b.formBuffer(start, bufferIdx)
+				//log.Println("limit", len(res))
+				return res
+			}
 
-	blockCh := make(chan struct{})
-	bb.blockCh = blockCh
-	bb.Unlock()
-
-	timeoutT := acquireTimer(b.timeout)
-	defer releaseTimer(timeoutT)
-
-	select {
-	case <-blockCh:
-		return nil
-	case <-timeoutT.C:
-		bb.Lock()
-		defer bb.Unlock()
-		if bb.blockCh != nil {
-			close(bb.blockCh)
-			bb.blockCh = nil
+			continue
+		case b.rangeStart[bufferIdx] <- start:
+			//log.Println("send start", start)
+			//log.Println(3)
+			return nil
+		case <-t.C:
+			//log.Println(4)
+			res := b.formBuffer(start, bufferIdx)
+			//log.Println("timeout", bufferIdx, len(res))
+			return res
 		}
-
-		items := append([]Item{}, bb.items...)
-		bb.items = bb.items[:0]
-		return items
 	}
+}
+
+func (b *Batcher[Item]) safeRangeStart(start int64) int64 {
+	if start == 0 {
+		return int64(len(b.rangeStart) - 1)
+	}
+
+	return start - 1
+}
+
+func (b *Batcher[Item]) formBuffer(start, end int64) []Item {
+	if start <= end {
+		return append([]Item{}, b.buffer[start:end+1]...)
+	}
+
+	return append(append([]Item{}, b.buffer[start:]...), b.buffer[:end+1]...)
 }

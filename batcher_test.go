@@ -1,6 +1,7 @@
 package batcher_test
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -9,6 +10,56 @@ import (
 	"github.com/makasim/batcher"
 	"github.com/stretchr/testify/require"
 )
+
+func TestFoo(t *testing.T) {
+	b := batcher.New[int64](5, time.Second*5)
+
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Millisecond * 100)
+		fmt.Printf("1: %v\n", b.Batch(1))
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Millisecond * 200)
+		fmt.Printf("2: %v\n", b.Batch(2))
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Millisecond * 300)
+		fmt.Printf("3: %v\n", b.Batch(3))
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Millisecond * 400)
+		fmt.Printf("4: %v\n", b.Batch(4))
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Millisecond * 500)
+		fmt.Printf("5: %v\n", b.Batch(5))
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Millisecond * 600)
+		fmt.Printf("6: %v\n", b.Batch(6))
+	}()
+
+	wg.Wait()
+}
 
 func TestSizeOneRateOne(t *testing.T) {
 	b := batcher.New[int64](1, time.Millisecond*2)
