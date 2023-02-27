@@ -18,7 +18,8 @@ type Batcher[Item any] struct {
 	count      int64
 	buffer     []Item
 	rangeStart []chan int64
-	timeout    time.Duration
+	//used       []chan struct{}
+	timeout time.Duration
 }
 
 func New[Item any](size int64, timeout time.Duration) *Batcher[Item] {
@@ -34,21 +35,31 @@ func New[Item any](size int64, timeout time.Duration) *Batcher[Item] {
 		count:      -1,
 		buffer:     make([]Item, size*100),
 		rangeStart: make([]chan int64, size*100),
-		timeout:    timeout,
+		//used:       make([]chan struct{}, size*100),
+		timeout: timeout,
 	}
 
 	for i := range b.rangeStart {
 		b.rangeStart[i] = make(chan int64)
+		//b.used[i] = make(chan struct{}, 1)
 	}
 
 	return b
 }
 
 func (b *Batcher[Item]) Batch(item Item) []Item {
+	if b.size == 1 {
+		return []Item{item}
+	}
+
 	idx := atomic.AddInt64(&b.count, 1)
 	bufferIdx := idx % int64(len(b.buffer))
 
-	//log.Println(idx, bufferIdx)
+	//b.used[bufferIdx] <- struct{}{}
+	//defer func() {
+	//	<-b.used[bufferIdx]
+	//}()
+
 	b.buffer[bufferIdx] = item
 
 	start := bufferIdx
@@ -56,28 +67,30 @@ func (b *Batcher[Item]) Batch(item Item) []Item {
 	defer releaseTimer(t)
 
 	for {
-		//log.Printf("item: %v; bufferIdx: %v; safeRangeStart: %v", item, bufferIdx, b.safeRangeStart(start))
 		select {
 		case start = <-b.rangeStart[b.safeRangeStart(start)]:
-			//log.Println("got start", start)
-			//log.Println(2)
-			//log.Println(bufferIdx - start)
-			if bufferIdx-start >= (b.size - 1) {
+			var size int64
+			if start < bufferIdx {
+				size = bufferIdx - start
+				//log.Println("size1: ", size)
+			} else {
+				//log.Println(len(b.buffer), start, bufferIdx)
+				size = (int64(len(b.buffer)) - start) + bufferIdx + 1
+				//log.Println("size2: ", size)
+			}
 
+			if size >= (b.size - 1) {
 				res := b.formBuffer(start, bufferIdx)
-				//log.Println("limit", len(res))
+				//log.Println("res: ", len(res))
 				return res
 			}
 
 			continue
 		case b.rangeStart[bufferIdx] <- start:
-			//log.Println("send start", start)
-			//log.Println(3)
 			return nil
 		case <-t.C:
-			//log.Println(4)
 			res := b.formBuffer(start, bufferIdx)
-			//log.Println("timeout", bufferIdx, len(res))
+			//log.Println("tmt1: ", bufferIdx, start, b.safeRangeStart(start))
 			return res
 		}
 	}
