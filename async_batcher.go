@@ -23,44 +23,44 @@ func NewWorkerBatcher[Item any](size int64, timeout time.Duration, batchFunc Asy
 		panic("size must be greater than zero")
 	}
 
-	wb := &AsyncBatcher[Item]{
+	b := &AsyncBatcher[Item]{
 		size:  size,
 		count: -1,
 		wg:    &sync.WaitGroup{},
 	}
 
-	for i := 0; i < len(wb.batches); i++ {
+	for i := 0; i < len(b.batches); i++ {
 		i := i
 
-		wb.batches[i] = make(chan Item, size*2)
+		b.batches[i] = make(chan Item, size*2)
 
-		wb.wg.Add(1)
+		b.wg.Add(1)
 		go func() {
-			defer wb.wg.Done()
-			collect(wb.batches[i], size, timeout, batchFunc)
+			defer b.wg.Done()
+			collect(b.batches[i], size, timeout, batchFunc)
 		}()
 	}
 
-	return wb
+	return b
 }
 
-func (wb *AsyncBatcher[Item]) Batch(ctx context.Context, item Item) error {
-	idx := atomic.AddInt64(&wb.count, 1)
-	batchIdx := (idx / wb.size) % 100
+func (b *AsyncBatcher[Item]) Batch(ctx context.Context, item Item) error {
+	idx := atomic.AddInt64(&b.count, 1)
+	batchIdx := (idx / b.size) % 100
 
 	select {
-	case wb.batches[batchIdx] <- item:
+	case b.batches[batchIdx] <- item:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 }
 
-func (wb *AsyncBatcher[Item]) Shutdown() {
-	for i := range wb.batches {
-		close(wb.batches[i])
+func (b *AsyncBatcher[Item]) Shutdown() {
+	for i := range b.batches {
+		close(b.batches[i])
 	}
-	wb.wg.Wait()
+	b.wg.Wait()
 }
 
 func collect[Item any](batchCh <-chan Item, size int64, timeout time.Duration, wbf AsyncBatchFunc[Item]) {
