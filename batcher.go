@@ -22,7 +22,7 @@ type Batcher[Item any] struct {
 
 func New[Item any](size int64, timeout time.Duration) *Batcher[Item] {
 	if size <= 0 {
-		panic("batch must be greater than zero")
+		panic("size must be greater than zero")
 	}
 	if timeout <= 0 {
 		panic("timeout must be greater than zero")

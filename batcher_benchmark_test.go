@@ -7,7 +7,7 @@ import (
 	"github.com/makasim/batcher"
 )
 
-func BenchmarkNoBatch(b *testing.B) {
+func Benchmark_NoBatch(b *testing.B) {
 	b.SetParallelism(10)
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
@@ -19,7 +19,7 @@ func BenchmarkNoBatch(b *testing.B) {
 	})
 }
 
-func BenchmarkBatchSizeOne(b *testing.B) {
+func BenchmarkBatcher_BatchSizeOne(b *testing.B) {
 	bb := batcher.New[int](1, time.Millisecond*100)
 
 	b.SetParallelism(10)
@@ -31,7 +31,7 @@ func BenchmarkBatchSizeOne(b *testing.B) {
 	})
 }
 
-func BenchmarkBatchSizeTwo(b *testing.B) {
+func BenchmarkBatcher_BatchSizeTwo(b *testing.B) {
 	bb := batcher.New[int](2, time.Millisecond*100)
 
 	b.SetParallelism(10)
@@ -43,7 +43,7 @@ func BenchmarkBatchSizeTwo(b *testing.B) {
 	})
 }
 
-func BenchmarkBatchSizeThree(b *testing.B) {
+func BenchmarkBatcher_BatchSizeThree(b *testing.B) {
 	bb := batcher.New[int](3, time.Millisecond*100)
 
 	b.SetParallelism(10)
@@ -55,7 +55,7 @@ func BenchmarkBatchSizeThree(b *testing.B) {
 	})
 }
 
-func BenchmarkBatchSizeFive(b *testing.B) {
+func BenchmarkBatcher_BatchSizeFive(b *testing.B) {
 	bb := batcher.New[int](5, time.Millisecond*100)
 
 	b.SetParallelism(10)
@@ -67,7 +67,7 @@ func BenchmarkBatchSizeFive(b *testing.B) {
 	})
 }
 
-func BenchmarkBatchSizeTen(b *testing.B) {
+func BenchmarkBatcher_BatchSizeTen(b *testing.B) {
 	bb := batcher.New[int](10, time.Millisecond*100)
 
 	b.SetParallelism(10)
@@ -79,7 +79,7 @@ func BenchmarkBatchSizeTen(b *testing.B) {
 	})
 }
 
-func BenchmarkBatchSizeTwenty(b *testing.B) {
+func BenchmarkBatcher_BatchSizeTwenty(b *testing.B) {
 	bb := batcher.New[int](20, time.Millisecond*100)
 
 	b.SetParallelism(10)
@@ -91,7 +91,7 @@ func BenchmarkBatchSizeTwenty(b *testing.B) {
 	})
 }
 
-func BenchmarkBatchSizeThirty(b *testing.B) {
+func BenchmarkBatcher_BatchSizeThirty(b *testing.B) {
 	bb := batcher.New[int](30, time.Millisecond*100)
 
 	b.SetParallelism(10)
