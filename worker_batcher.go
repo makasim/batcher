@@ -32,7 +32,7 @@ func NewWorkerBatcher[Item any](size int64, timeout time.Duration, batchFunc Wor
 	}
 
 	for i := range wb.batches {
-		wb.batches[i] = make(chan Item, size)
+		wb.batches[i] = make(chan Item, size*2)
 	}
 
 	for i := 0; i < len(wb.batches); i++ {
@@ -77,6 +77,11 @@ func (wb *WorkerBatcher[Item]) collect(i int) {
 		select {
 		case item, ok := <-wb.batches[i]:
 			if !ok {
+				if len(items) > 0 {
+					wb.wbf(items)
+					items = items[:0]
+				}
+
 				return
 			}
 
