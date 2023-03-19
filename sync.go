@@ -93,6 +93,9 @@ func collectSync[Item any](batchCh <-chan syncItem[Item], size int64, timeout ti
 				return
 			}
 
+			releaseTimer(t)
+			t = acquireTimer(timeout)
+
 			syncItems = append(syncItems, si)
 			if len(syncItems) > 1 {
 				syncItems[len(syncItems)-2].resCh <- nil
@@ -101,19 +104,14 @@ func collectSync[Item any](batchCh <-chan syncItem[Item], size int64, timeout ti
 			if len(syncItems) >= int(size) {
 				syncItems[len(syncItems)-1].resCh <- toItems(syncItems)
 				syncItems = syncItems[:0]
+				t.Stop()
 			}
-
-			releaseTimer(t)
-			t = acquireTimer(timeout)
 		case <-t.C:
 			if len(syncItems) > 0 {
-				t := toItems(syncItems)
-				syncItems[len(syncItems)-1].resCh <- t
+				syncItems[len(syncItems)-1].resCh <- toItems(syncItems)
 				syncItems = syncItems[:0]
 			}
-
-			releaseTimer(t)
-			t = acquireTimer(timeout)
+			t.Stop()
 		}
 	}
 }

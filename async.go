@@ -66,7 +66,7 @@ func (b *AsyncBatcher[Item]) Shutdown() {
 func collect[Item any](batchCh <-chan Item, size int64, timeout time.Duration, wbf AsyncBatchFunc[Item]) {
 	items := make([]Item, size)
 
-	t := time.NewTimer(timeout)
+	t := acquireTimer(timeout)
 
 	for {
 		select {
@@ -80,23 +80,21 @@ func collect[Item any](batchCh <-chan Item, size int64, timeout time.Duration, w
 				return
 			}
 
+			releaseTimer(t)
+			t = acquireTimer(timeout)
+
 			items = append(items, item)
 			if len(items) >= int(size) {
 				wbf(items)
 				items = items[:0]
+				t.Stop()
 			}
-
-			if !t.Stop() {
-				t = time.NewTimer(timeout)
-				continue
-			}
-
-			t.Reset(timeout)
 		case <-t.C:
 			if len(items) > 0 {
 				wbf(items)
 				items = items[:0]
 			}
+			t.Stop()
 		}
 	}
 }
