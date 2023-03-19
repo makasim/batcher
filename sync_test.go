@@ -12,7 +12,7 @@ import (
 
 func TestSizeOne(main *testing.T) {
 	main.Run("RateOne", func(t *testing.T) {
-		b := batcher.New[int64](1, time.Second)
+		b := batcher.NewSync[int64](1, time.Second)
 
 		result := genLoad(b, 1, 100, time.Millisecond)
 
@@ -20,7 +20,7 @@ func TestSizeOne(main *testing.T) {
 	})
 
 	main.Run("RateTwo", func(t *testing.T) {
-		b := batcher.New[int64](1, time.Second)
+		b := batcher.NewSync[int64](1, time.Second)
 
 		result := genLoad(b, 2, 100, time.Millisecond)
 
@@ -28,7 +28,7 @@ func TestSizeOne(main *testing.T) {
 	})
 
 	main.Run("RateFive", func(t *testing.T) {
-		b := batcher.New[int64](1, time.Second)
+		b := batcher.NewSync[int64](1, time.Second)
 
 		result := genLoad(b, 5, 100, time.Millisecond)
 
@@ -36,7 +36,7 @@ func TestSizeOne(main *testing.T) {
 	})
 
 	main.Run("RateTen", func(t *testing.T) {
-		b := batcher.New[int64](1, time.Second)
+		b := batcher.NewSync[int64](1, time.Second)
 
 		result := genLoad(b, 10, 100, time.Millisecond)
 
@@ -46,7 +46,7 @@ func TestSizeOne(main *testing.T) {
 
 func TestSizeTwo(main *testing.T) {
 	main.Run("RateTwo", func(t *testing.T) {
-		b := batcher.New[int64](2, time.Second)
+		b := batcher.NewSync[int64](2, time.Second)
 
 		result := genLoad(b, 2, 100, time.Millisecond)
 
@@ -54,7 +54,7 @@ func TestSizeTwo(main *testing.T) {
 	})
 
 	main.Run("RateFour", func(t *testing.T) {
-		b := batcher.New[int64](2, time.Millisecond*100)
+		b := batcher.NewSync[int64](2, time.Millisecond*100)
 
 		result := genLoad(b, 4, 100, time.Millisecond)
 
@@ -62,7 +62,7 @@ func TestSizeTwo(main *testing.T) {
 	})
 
 	main.Run("RateSix", func(t *testing.T) {
-		b := batcher.New[int64](2, time.Second)
+		b := batcher.NewSync[int64](2, time.Second)
 
 		result := genLoad(b, 6, 100, time.Millisecond)
 
@@ -70,7 +70,7 @@ func TestSizeTwo(main *testing.T) {
 	})
 
 	main.Run("RateTen", func(t *testing.T) {
-		b := batcher.New[int64](2, time.Millisecond*100)
+		b := batcher.NewSync[int64](2, time.Millisecond*100)
 
 		result := genLoad(b, 10, 100, time.Millisecond)
 
@@ -79,7 +79,7 @@ func TestSizeTwo(main *testing.T) {
 }
 
 func TestSizeTenRateOne(t *testing.T) {
-	b := batcher.New[int64](10, time.Millisecond*2)
+	b := batcher.NewSync[int64](10, time.Millisecond*2)
 
 	result := genLoad(b, 1, 1000, time.Millisecond)
 
@@ -87,7 +87,7 @@ func TestSizeTenRateOne(t *testing.T) {
 }
 
 func TestSizeTenRateTwo(t *testing.T) {
-	b := batcher.New[int64](10, time.Millisecond*2)
+	b := batcher.NewSync[int64](10, time.Millisecond*2)
 
 	result := genLoad(b, 2, 1000, time.Millisecond)
 
@@ -95,7 +95,7 @@ func TestSizeTenRateTwo(t *testing.T) {
 }
 
 func TestSizeTenRateTen(t *testing.T) {
-	b := batcher.New[int64](10, time.Millisecond*2)
+	b := batcher.NewSync[int64](10, time.Millisecond*2)
 
 	result := genLoad(b, 10, 1000, time.Microsecond*100)
 
@@ -103,7 +103,7 @@ func TestSizeTenRateTen(t *testing.T) {
 }
 
 func TestSlowSizeTenRateTwo(t *testing.T) {
-	b := batcher.New[int64](10, time.Millisecond)
+	b := batcher.NewSync[int64](10, time.Millisecond)
 
 	result := genLoad(b, 2, 100, time.Millisecond*2)
 
@@ -143,7 +143,7 @@ func genLoad(b *batcher.Batcher[int64], concr, reqs int, wait time.Duration) int
 
 //
 //func TestFive(t *testing.T) {
-//	b := batcher.New[int](10, time.Millisecond)
+//	b := batcher.NewSync[int](10, time.Millisecond)
 //
 //	for i := 0; i < 4; i++ {
 //		go func(i int) {

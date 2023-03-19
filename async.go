@@ -18,7 +18,7 @@ type AsyncBatcher[Item any] struct {
 	batches [100]chan Item
 }
 
-func NewWorkerBatcher[Item any](size int64, timeout time.Duration, batchFunc AsyncBatchFunc[Item]) *AsyncBatcher[Item] {
+func NewAsync[Item any](size int64, timeout time.Duration, batchFunc AsyncBatchFunc[Item]) *AsyncBatcher[Item] {
 	if size <= 0 {
 		panic("size must be greater than zero")
 	}
