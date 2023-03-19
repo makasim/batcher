@@ -11,7 +11,7 @@ type syncItem[Item any] struct {
 	resCh chan []Item
 }
 
-type Batcher[Item any] struct {
+type SyncBatcher[Item any] struct {
 	wg      *sync.WaitGroup
 	size    int64
 	count   int64
@@ -19,12 +19,12 @@ type Batcher[Item any] struct {
 	batches [100]chan syncItem[Item]
 }
 
-func NewSync[Item any](size int64, timeout time.Duration) *Batcher[Item] {
+func NewSync[Item any](size int64, timeout time.Duration) *SyncBatcher[Item] {
 	if size <= 0 {
 		panic("size must be greater than zero")
 	}
 
-	b := &Batcher[Item]{
+	b := &SyncBatcher[Item]{
 		size:  size,
 		count: -1,
 		wg:    &sync.WaitGroup{},
@@ -45,7 +45,7 @@ func NewSync[Item any](size int64, timeout time.Duration) *Batcher[Item] {
 	return b
 }
 
-func (b *Batcher[Item]) Batch(item Item) []Item {
+func (b *SyncBatcher[Item]) Batch(item Item) []Item {
 	idx := atomic.AddInt64(&b.count, 1)
 	batchIdx := (idx / b.size) % 100
 
@@ -60,7 +60,7 @@ func (b *Batcher[Item]) Batch(item Item) []Item {
 	}
 }
 
-func (b *Batcher[Item]) Shutdown() {
+func (b *SyncBatcher[Item]) Shutdown() {
 	for i := range b.batches {
 		close(b.batches[i])
 	}
