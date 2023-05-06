@@ -32,7 +32,7 @@ func NewAsync[Item any](size int64, timeout time.Duration, batchFunc AsyncBatchF
 	for i := 0; i < len(b.batches); i++ {
 		i := i
 
-		b.batches[i] = make(chan Item, size*2)
+		b.batches[i] = make(chan Item, size)
 
 		b.wg.Add(1)
 		go func() {
@@ -56,17 +56,33 @@ func (b *AsyncBatcher[Item]) Batch(ctx context.Context, item Item) error {
 	}
 }
 
-func (b *AsyncBatcher[Item]) Shutdown() {
+func (b *AsyncBatcher[Item]) Shutdown(ctx context.Context) error {
 	for i := range b.batches {
 		close(b.batches[i])
 	}
-	b.wg.Wait()
+
+	stoppedCh := make(chan struct{})
+
+	go func() {
+		defer close(stoppedCh)
+		b.wg.Wait()
+	}()
+
+	select {
+	case <-stoppedCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func collect[Item any](batchCh <-chan Item, size int64, timeout time.Duration, wbf AsyncBatchFunc[Item]) {
 	items := make([]Item, 0, size)
 
+	leftSize := size
+
 	t := acquireTimer(timeout)
+	t.Stop()
 
 	for {
 		select {
@@ -84,17 +100,23 @@ func collect[Item any](batchCh <-chan Item, size int64, timeout time.Duration, w
 			t = acquireTimer(timeout)
 
 			items = append(items, item)
-			if len(items) >= int(size) {
+			leftSize--
+
+			if leftSize == 0 {
+				t.Stop()
+
 				wbf(items)
 				items = items[:0]
-				t.Stop()
+				leftSize = size
 			}
 		case <-t.C:
+			t.Stop()
+
 			if len(items) > 0 {
 				wbf(items)
 				items = items[:0]
+				// leftSize is unchanged
 			}
-			t.Stop()
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package batcher
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -60,11 +61,23 @@ func (b *SyncBatcher[Item]) Batch(item Item) []Item {
 	}
 }
 
-func (b *SyncBatcher[Item]) Shutdown() {
+func (b *SyncBatcher[Item]) Shutdown(ctx context.Context) error {
 	for i := range b.batches {
 		close(b.batches[i])
 	}
-	b.wg.Wait()
+
+	stoppedCh := make(chan struct{})
+	go func() {
+		defer close(stoppedCh)
+		b.wg.Wait()
+	}()
+
+	select {
+	case <-stoppedCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func collectSync[Item any](batchCh <-chan syncItem[Item], size int64, timeout time.Duration) {
