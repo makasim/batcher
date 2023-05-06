@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSizeOne(main *testing.T) {
+func TestSyncBatcher_SizeOne(main *testing.T) {
 	main.Run("RateOne", func(t *testing.T) {
-		b := batcher.New[int64](1, time.Second)
+		b := batcher.NewSync[int64](1, time.Second)
 
 		result := genLoad(b, 1, 100, time.Millisecond)
 
@@ -20,7 +20,7 @@ func TestSizeOne(main *testing.T) {
 	})
 
 	main.Run("RateTwo", func(t *testing.T) {
-		b := batcher.New[int64](1, time.Second)
+		b := batcher.NewSync[int64](1, time.Second)
 
 		result := genLoad(b, 2, 100, time.Millisecond)
 
@@ -28,7 +28,7 @@ func TestSizeOne(main *testing.T) {
 	})
 
 	main.Run("RateFive", func(t *testing.T) {
-		b := batcher.New[int64](1, time.Second)
+		b := batcher.NewSync[int64](1, time.Second)
 
 		result := genLoad(b, 5, 100, time.Millisecond)
 
@@ -36,7 +36,7 @@ func TestSizeOne(main *testing.T) {
 	})
 
 	main.Run("RateTen", func(t *testing.T) {
-		b := batcher.New[int64](1, time.Second)
+		b := batcher.NewSync[int64](1, time.Second)
 
 		result := genLoad(b, 10, 100, time.Millisecond)
 
@@ -44,9 +44,9 @@ func TestSizeOne(main *testing.T) {
 	})
 }
 
-func TestSizeTwo(main *testing.T) {
+func TestSyncBatcher_SizeTwo(main *testing.T) {
 	main.Run("RateTwo", func(t *testing.T) {
-		b := batcher.New[int64](2, time.Second)
+		b := batcher.NewSync[int64](2, time.Second)
 
 		result := genLoad(b, 2, 100, time.Millisecond)
 
@@ -54,7 +54,7 @@ func TestSizeTwo(main *testing.T) {
 	})
 
 	main.Run("RateFour", func(t *testing.T) {
-		b := batcher.New[int64](2, time.Millisecond*100)
+		b := batcher.NewSync[int64](2, time.Millisecond*100)
 
 		result := genLoad(b, 4, 100, time.Millisecond)
 
@@ -62,7 +62,7 @@ func TestSizeTwo(main *testing.T) {
 	})
 
 	main.Run("RateSix", func(t *testing.T) {
-		b := batcher.New[int64](2, time.Second)
+		b := batcher.NewSync[int64](2, time.Second)
 
 		result := genLoad(b, 6, 100, time.Millisecond)
 
@@ -70,7 +70,7 @@ func TestSizeTwo(main *testing.T) {
 	})
 
 	main.Run("RateTen", func(t *testing.T) {
-		b := batcher.New[int64](2, time.Millisecond*100)
+		b := batcher.NewSync[int64](2, time.Millisecond*100)
 
 		result := genLoad(b, 10, 100, time.Millisecond)
 
@@ -78,39 +78,39 @@ func TestSizeTwo(main *testing.T) {
 	})
 }
 
-func TestSizeTenRateOne(t *testing.T) {
-	b := batcher.New[int64](10, time.Millisecond*2)
+func TestSyncBatcher_SizeTenRateOne(t *testing.T) {
+	b := batcher.NewSync[int64](10, time.Millisecond*2)
 
 	result := genLoad(b, 1, 1000, time.Millisecond)
 
 	require.Equal(t, int64(2000), result)
 }
 
-func TestSizeTenRateTwo(t *testing.T) {
-	b := batcher.New[int64](10, time.Millisecond*2)
+func TestSyncBatcher_SizeTenRateTwo(t *testing.T) {
+	b := batcher.NewSync[int64](10, time.Millisecond*2)
 
 	result := genLoad(b, 2, 1000, time.Millisecond)
 
 	require.Equal(t, int64(4000), result)
 }
 
-func TestSizeTenRateTen(t *testing.T) {
-	b := batcher.New[int64](10, time.Millisecond*2)
+func TestSyncBatcher_SizeTenRateTen(t *testing.T) {
+	b := batcher.NewSync[int64](10, time.Millisecond*2)
 
 	result := genLoad(b, 10, 1000, time.Microsecond*100)
 
 	require.Equal(t, int64(20000), result)
 }
 
-func TestSlowSizeTenRateTwo(t *testing.T) {
-	b := batcher.New[int64](10, time.Millisecond)
+func TestSyncBatcher_SlowSizeTenRateTwo(t *testing.T) {
+	b := batcher.NewSync[int64](10, time.Millisecond)
 
 	result := genLoad(b, 2, 100, time.Millisecond*2)
 
 	require.Equal(t, int64(400), result)
 }
 
-func genLoad(b *batcher.Batcher[int64], concr, reqs int, wait time.Duration) int64 {
+func genLoad(b *batcher.SyncBatcher[int64], concr, reqs int, wait time.Duration) int64 {
 	wg := &sync.WaitGroup{}
 
 	var results int64
@@ -142,8 +142,8 @@ func genLoad(b *batcher.Batcher[int64], concr, reqs int, wait time.Duration) int
 }
 
 //
-//func TestFive(t *testing.T) {
-//	b := batcher.New[int](10, time.Millisecond)
+//func TestSyncBatcher_Five(t *testing.T) {
+//	b := batcher.NewSync[int](10, time.Millisecond)
 //
 //	for i := 0; i < 4; i++ {
 //		go func(i int) {
