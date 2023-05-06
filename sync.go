@@ -83,6 +83,8 @@ func (b *SyncBatcher[Item]) Shutdown(ctx context.Context) error {
 func collectSync[Item any](batchCh <-chan syncItem[Item], size int64, timeout time.Duration) {
 	syncItems := make([]syncItem[Item], 0, size)
 
+	leftSize := size
+
 	t := acquireTimer(timeout)
 
 	toItems := func(syncItems []syncItem[Item]) []Item {
@@ -110,19 +112,23 @@ func collectSync[Item any](batchCh <-chan syncItem[Item], size int64, timeout ti
 			t = acquireTimer(timeout)
 
 			syncItems = append(syncItems, si)
+			leftSize--
+
 			if len(syncItems) > 1 {
 				syncItems[len(syncItems)-2].resCh <- nil
 			}
 
-			if len(syncItems) >= int(size) {
+			if leftSize == 0 {
 				syncItems[len(syncItems)-1].resCh <- toItems(syncItems)
 				syncItems = syncItems[:0]
 				t.Stop()
+				leftSize = size
 			}
 		case <-t.C:
 			if len(syncItems) > 0 {
 				syncItems[len(syncItems)-1].resCh <- toItems(syncItems)
 				syncItems = syncItems[:0]
+				// leftSize is unchanged
 			}
 			t.Stop()
 		}
