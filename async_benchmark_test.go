@@ -12,7 +12,7 @@ func BenchmarkAsyncBatcher_BatchSizeOne(b *testing.B) {
 	bb := batcher.NewAsync[int](1, time.Millisecond*100, func(items []int) {
 	})
 
-	b.SetParallelism(1)
+	b.SetParallelism(10)
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
