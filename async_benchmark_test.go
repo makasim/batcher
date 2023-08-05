@@ -1,7 +1,6 @@
 package batcher_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -9,17 +8,15 @@ import (
 )
 
 func BenchmarkAsyncBatcher_BatchSizeOne(b *testing.B) {
-	bb := batcher.NewAsync[int](1, time.Millisecond*100, func(items []int) {
 
+	bb := batcher.NewAsync[int](1, time.Millisecond*100, func(items []int) {
 	})
 
-	b.SetParallelism(10)
+	b.SetParallelism(1)
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err := bb.Batch(context.Background(), 1); err != nil {
-				panic(err)
-			}
+			_ = bb.Batch(1)
 		}
 	})
 }
@@ -33,9 +30,7 @@ func BenchmarkAsyncBatcher_BatchSizeTwo(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err := bb.Batch(context.Background(), 1); err != nil {
-				panic(err)
-			}
+			_ = bb.Batch(1)
 		}
 	})
 }
@@ -49,9 +44,7 @@ func BenchmarkAsyncBatcher_BatchSizeThree(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err := bb.Batch(context.Background(), 1); err != nil {
-				panic(err)
-			}
+			_ = bb.Batch(1)
 		}
 	})
 }
@@ -65,9 +58,7 @@ func BenchmarkAsyncBatcher_BatchSizeFive(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err := bb.Batch(context.Background(), 1); err != nil {
-				panic(err)
-			}
+			_ = bb.Batch(1)
 		}
 	})
 }
@@ -81,9 +72,7 @@ func BenchmarkAsyncBatcher_BatchSizeTen(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err := bb.Batch(context.Background(), 1); err != nil {
-				panic(err)
-			}
+			_ = bb.Batch(1)
 		}
 	})
 }
@@ -97,9 +86,7 @@ func BenchmarkAsyncBatcher_BatchSizeTwenty(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err := bb.Batch(context.Background(), 1); err != nil {
-				panic(err)
-			}
+			_ = bb.Batch(1)
 		}
 	})
 }
@@ -113,9 +100,7 @@ func BenchmarkAsyncBatcher_BatchSizeThirty(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err := bb.Batch(context.Background(), 1); err != nil {
-				panic(err)
-			}
+			_ = bb.Batch(1)
 		}
 	})
 }

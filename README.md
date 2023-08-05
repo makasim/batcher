@@ -50,7 +50,7 @@ func main() {
     })
     defer b.Shutdown(context.Background())
 
-	b.Batch(context.Background(), 123)
+	b.Batch(123)
 }
 ```
 
