@@ -2,10 +2,13 @@ package batcher
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
 )
+
+var ErrBufferFull = errors.New("buffer is full")
 
 type AsyncBatchFunc[Item any] func(items []Item)
 
@@ -44,15 +47,15 @@ func NewAsync[Item any](size int64, timeout time.Duration, batchFunc AsyncBatchF
 	return b
 }
 
-func (b *AsyncBatcher[Item]) Batch(ctx context.Context, item Item) error {
+func (b *AsyncBatcher[Item]) Batch(item Item) error {
 	idx := atomic.AddInt64(&b.count, 1)
 	batchIdx := (idx / b.size) % 100
 
 	select {
 	case b.batches[batchIdx] <- item:
 		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	default:
+		return ErrBufferFull
 	}
 }
 
@@ -110,6 +113,8 @@ func collect[Item any](batchCh <-chan Item, size int64, timeout time.Duration, w
 				leftSize = size
 			}
 		case <-t.C:
+			releaseTimer(t)
+			t = acquireTimer(timeout)
 			t.Stop()
 
 			if len(items) > 0 {

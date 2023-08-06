@@ -2,11 +2,13 @@ package batcher_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/makasim/batcher"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 )
 
 func TestAsyncBatcher(main *testing.T) {
@@ -26,9 +28,9 @@ func TestAsyncBatcher(main *testing.T) {
 			require.NoError(t, b.Shutdown(ctx100ms(t)))
 		}()
 
-		require.NoError(t, b.Batch(ctx100ms(t), 1))
-		require.NoError(t, b.Batch(ctx100ms(t), 2))
-		require.NoError(t, b.Batch(ctx100ms(t), 3))
+		require.NoError(t, b.Batch(1))
+		require.NoError(t, b.Batch(2))
+		require.NoError(t, b.Batch(3))
 
 		results := make([][]int, 0)
 		results = append(results, <-resultCh)
@@ -50,14 +52,14 @@ func TestAsyncBatcher(main *testing.T) {
 			require.NoError(t, b.Shutdown(ctx100ms(t)))
 		}()
 
-		require.NoError(t, b.Batch(ctx100ms(t), 1))
-		require.NoError(t, b.Batch(ctx100ms(t), 2))
+		require.NoError(t, b.Batch(1))
+		require.NoError(t, b.Batch(2))
 
-		require.NoError(t, b.Batch(ctx100ms(t), 3))
-		require.NoError(t, b.Batch(ctx100ms(t), 4))
+		require.NoError(t, b.Batch(3))
+		require.NoError(t, b.Batch(4))
 
-		require.NoError(t, b.Batch(ctx100ms(t), 5))
-		require.NoError(t, b.Batch(ctx100ms(t), 6))
+		require.NoError(t, b.Batch(5))
+		require.NoError(t, b.Batch(6))
 
 		results := make([][]int, 0)
 		results = append(results, <-resultCh)
@@ -80,7 +82,7 @@ func TestAsyncBatcher(main *testing.T) {
 		}()
 
 		for i := 0; i < 15; i++ {
-			require.NoError(t, b.Batch(ctx100ms(t), i))
+			require.NoError(t, b.Batch(i))
 		}
 
 		results := make([][]int, 0)
@@ -104,7 +106,7 @@ func TestAsyncBatcher(main *testing.T) {
 		}()
 
 		for i := 0; i < 30; i++ {
-			require.NoError(t, b.Batch(ctx100ms(t), i))
+			require.NoError(t, b.Batch(i))
 		}
 
 		results := make([][]int, 0)
@@ -117,7 +119,37 @@ func TestAsyncBatcher(main *testing.T) {
 		require.Contains(t, results, []int{20, 21, 22, 23, 24, 25, 26, 27, 28, 29})
 	})
 
-	main.Run("AddTimeout", func(t *testing.T) {
+	main.Run("Rate100RPS", func(t *testing.T) {
+		b := batcher.NewAsync[int](10, time.Second*60, func(items []int) {})
+		defer func() {
+			require.NoError(t, b.Shutdown(ctx100ms(t)))
+		}()
+
+		wg := &sync.WaitGroup{}
+		closeCh := make(chan struct{})
+		rl := rate.NewLimiter(100, 1)
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for {
+					select {
+					case <-closeCh:
+						return
+					default:
+						require.NoError(t, rl.Wait(context.Background()))
+						require.NoError(t, b.Batch(1))
+					}
+				}
+			}()
+		}
+
+		time.Sleep(5 * time.Second)
+		close(closeCh)
+		wg.Wait()
+	})
+
+	main.Run("ErrBufferOverflow", func(t *testing.T) {
 		releaseCh := make(chan struct{})
 
 		b := batcher.NewAsync[int](1, time.Second*60, func(items []int) {
@@ -127,15 +159,15 @@ func TestAsyncBatcher(main *testing.T) {
 		// 100 is internal batches size
 		// first 100 goes to collect and blocks in batchFunc
 		// second 100 goes to batchCh and blocks there
-		for i := 0; i < 200; i++ {
-			ctx, ctxCancel := context.WithTimeout(ctx100ms(t), time.Millisecond*100)
-			require.NoError(t, b.Batch(ctx, i))
-			ctxCancel()
+		var err error
+		for i := 0; i < 205; i++ {
+			if err = b.Batch(i); err != nil {
+				break
+			}
+
 		}
 
-		ctx, ctxCancel := context.WithTimeout(ctx100ms(t), time.Millisecond*100)
-		defer ctxCancel()
-		require.EqualError(t, b.Batch(ctx, 100), `context deadline exceeded`)
+		require.EqualError(t, err, "buffer is full")
 
 		close(releaseCh)
 
@@ -151,22 +183,22 @@ func TestAsyncBatcher(main *testing.T) {
 
 		results := make([][]int, 0)
 
-		require.NoError(t, b.Batch(ctx100ms(t), 1))
-		require.NoError(t, b.Batch(ctx100ms(t), 2))
+		require.NoError(t, b.Batch(1))
+		require.NoError(t, b.Batch(2))
 		results = append(results, <-resultCh)
 
-		require.NoError(t, b.Batch(ctx100ms(t), 3))
-		require.NoError(t, b.Batch(ctx100ms(t), 4))
+		require.NoError(t, b.Batch(3))
+		require.NoError(t, b.Batch(4))
 		results = append(results, <-resultCh)
 		results = append(results, <-resultCh)
 
-		require.NoError(t, b.Batch(ctx100ms(t), 5))
-		require.NoError(t, b.Batch(ctx100ms(t), 6))
+		require.NoError(t, b.Batch(5))
+		require.NoError(t, b.Batch(6))
 		results = append(results, <-resultCh)
 
-		require.NoError(t, b.Batch(ctx100ms(t), 7))
-		require.NoError(t, b.Batch(ctx100ms(t), 8))
-		require.NoError(t, b.Batch(ctx100ms(t), 9))
+		require.NoError(t, b.Batch(7))
+		require.NoError(t, b.Batch(8))
+		require.NoError(t, b.Batch(9))
 		results = append(results, <-resultCh)
 
 		require.Contains(t, results, []int{1, 2})
@@ -186,17 +218,17 @@ func TestAsyncBatcher(main *testing.T) {
 
 		results := make([][]int, 0)
 
-		require.NoError(t, b.Batch(ctx100ms(t), 1))
-		require.NoError(t, b.Batch(ctx100ms(t), 2))
-		require.NoError(t, b.Batch(ctx100ms(t), 3))
+		require.NoError(t, b.Batch(1))
+		require.NoError(t, b.Batch(2))
+		require.NoError(t, b.Batch(3))
 
-		require.NoError(t, b.Batch(ctx100ms(t), 4))
-		require.NoError(t, b.Batch(ctx100ms(t), 5))
-		require.NoError(t, b.Batch(ctx100ms(t), 6))
+		require.NoError(t, b.Batch(4))
+		require.NoError(t, b.Batch(5))
+		require.NoError(t, b.Batch(6))
 
-		require.NoError(t, b.Batch(ctx100ms(t), 7))
-		require.NoError(t, b.Batch(ctx100ms(t), 8))
-		require.NoError(t, b.Batch(ctx100ms(t), 9))
+		require.NoError(t, b.Batch(7))
+		require.NoError(t, b.Batch(8))
+		require.NoError(t, b.Batch(9))
 
 		shutdownCtx, shutdownCtxCancel := context.WithTimeout(context.Background(), time.Second)
 		defer shutdownCtxCancel()
@@ -219,7 +251,7 @@ func TestAsyncBatcher(main *testing.T) {
 			resultCh <- append([]int(nil), items...)
 		})
 
-		require.NoError(t, b.Batch(ctx100ms(t), 1))
+		require.NoError(t, b.Batch(1))
 
 		shutdownCtx, shutdownCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer shutdownCtxCancel()
@@ -238,7 +270,7 @@ func TestAsyncBatcher(main *testing.T) {
 			<-releaseCh
 		})
 
-		require.NoError(t, b.Batch(ctx100ms(t), 1))
+		require.NoError(t, b.Batch(1))
 
 		require.EqualError(t, b.Shutdown(ctx100ms(t)), `context deadline exceeded`)
 
