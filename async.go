@@ -12,13 +12,20 @@ var ErrBufferFull = errors.New("buffer is full")
 
 type AsyncBatchFunc[Item any] func(items []Item)
 
+type asyncBatchItems[Item any] struct {
+	items  []Item
+	mux    sync.Mutex
+	timer  *time.Timer
+	fullCh chan struct{}
+}
+
 type AsyncBatcher[Item any] struct {
 	bf      AsyncBatchFunc[Item]
 	wg      *sync.WaitGroup
 	size    int64
 	count   int64
 	timeout time.Duration
-	batches [100]chan Item
+	batches [100]*asyncBatchItems[Item]
 }
 
 func NewAsync[Item any](size int64, timeout time.Duration, batchFunc AsyncBatchFunc[Item]) *AsyncBatcher[Item] {
@@ -35,7 +42,12 @@ func NewAsync[Item any](size int64, timeout time.Duration, batchFunc AsyncBatchF
 	for i := 0; i < len(b.batches); i++ {
 		i := i
 
-		b.batches[i] = make(chan Item, size)
+		b.batches[i] = &asyncBatchItems[Item]{
+			items:  make([]Item, 0, size),
+			mux:    sync.Mutex{},
+			timer:  acquireTimer(timeout),
+			fullCh: make(chan struct{}, 1),
+		}
 
 		b.wg.Add(1)
 		go func() {
@@ -51,21 +63,34 @@ func (b *AsyncBatcher[Item]) Batch(item Item) error {
 	idx := atomic.AddInt64(&b.count, 1)
 	batchIdx := (idx / b.size) % 100
 
-	select {
-	case b.batches[batchIdx] <- item:
-		return nil
-	default:
+	bi := b.batches[batchIdx]
+
+	bi.mux.Lock()
+	defer bi.mux.Unlock()
+
+	if len(bi.items) >= cap(bi.items) {
 		return ErrBufferFull
 	}
+
+	bi.items = append(bi.items, item)
+
+	if len(bi.items) == cap(bi.items) {
+		select {
+		case bi.fullCh <- struct{}{}:
+		default:
+			return ErrBufferFull
+		}
+	}
+
+	return nil
 }
 
 func (b *AsyncBatcher[Item]) Shutdown(ctx context.Context) error {
 	for i := range b.batches {
-		close(b.batches[i])
+		close(b.batches[i].fullCh)
 	}
 
 	stoppedCh := make(chan struct{})
-
 	go func() {
 		defer close(stoppedCh)
 		b.wg.Wait()
@@ -79,49 +104,36 @@ func (b *AsyncBatcher[Item]) Shutdown(ctx context.Context) error {
 	}
 }
 
-func collect[Item any](batchCh <-chan Item, size int64, timeout time.Duration, wbf AsyncBatchFunc[Item]) {
+func collect[Item any](bi *asyncBatchItems[Item], size int64, timeout time.Duration, wbf AsyncBatchFunc[Item]) {
 	items := make([]Item, 0, size)
-
-	leftSize := size
-
-	t := acquireTimer(timeout)
-	t.Stop()
+	var exit bool
 
 	for {
+		if exit {
+			return
+		}
+
 		select {
-		case item, ok := <-batchCh:
+		case <-bi.timer.C:
+		case _, ok := <-bi.fullCh:
 			if !ok {
-				if len(items) > 0 {
-					wbf(items)
-					items = items[:0]
-				}
-
-				return
+				exit = true
 			}
+		}
 
-			releaseTimer(t)
-			t = acquireTimer(timeout)
+		bi.mux.Lock()
+		if len(bi.items) > 0 {
+			items = items[0:len(bi.items)]
+			copy(items, bi.items)
+			bi.items = bi.items[:0]
+		}
+		releaseTimer(bi.timer)
+		bi.timer = acquireTimer(timeout)
+		bi.mux.Unlock()
 
-			items = append(items, item)
-			leftSize--
-
-			if leftSize == 0 {
-				t.Stop()
-
-				wbf(items)
-				items = items[:0]
-				leftSize = size
-			}
-		case <-t.C:
-			releaseTimer(t)
-			t = acquireTimer(timeout)
-			t.Stop()
-
-			if len(items) > 0 {
-				wbf(items)
-				items = items[:0]
-				// leftSize is unchanged
-			}
+		if len(items) > 0 {
+			wbf(items)
+			items = items[:0]
 		}
 	}
 }

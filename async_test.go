@@ -256,7 +256,6 @@ func TestAsyncBatcher(main *testing.T) {
 		shutdownCtx, shutdownCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer shutdownCtxCancel()
 		require.NoError(t, b.Shutdown(shutdownCtx))
-
 		results := make([][]int, 0)
 		results = append(results, <-resultCh)
 
