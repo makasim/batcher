@@ -65,7 +65,7 @@ func NewAsync[Item any](batch int64, buckets int, timeout time.Duration, batchFu
 
 func (b *AsyncBatcher[Item]) Batch(item Item) error {
 	idx := atomic.AddInt64(&b.count, 1)
-	batchIdx := (idx / b.size) % 100
+	batchIdx := (idx / b.size) % int64(len(b.buckets))
 
 	bi := b.buckets[batchIdx]
 
