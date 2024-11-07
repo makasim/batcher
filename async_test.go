@@ -120,7 +120,7 @@ func TestAsyncBatcher(main *testing.T) {
 	})
 
 	main.Run("Rate100RPS", func(t *testing.T) {
-		b := batcher.NewAsync[int](10, time.Second*60, func(items []int) {})
+		b := batcher.NewAsync[int](10, 100, time.Second*60, func(items []int) {})
 		defer func() {
 			require.NoError(t, b.Shutdown(ctx100ms(t)))
 		}()
