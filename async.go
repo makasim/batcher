@@ -25,25 +25,29 @@ type AsyncBatcher[Item any] struct {
 	size    int64
 	count   int64
 	timeout time.Duration
-	batches [100]*asyncBatchItems[Item]
+	buckets []*asyncBatchItems[Item]
 }
 
-func NewAsync[Item any](size int64, timeout time.Duration, batchFunc AsyncBatchFunc[Item]) *AsyncBatcher[Item] {
-	if size <= 0 {
-		panic("size must be greater than zero")
+func NewAsync[Item any](batch int64, buckets int, timeout time.Duration, batchFunc AsyncBatchFunc[Item]) *AsyncBatcher[Item] {
+	if batch <= 0 {
+		panic("batch must be greater than zero")
+	}
+	if buckets <= 0 {
+		panic("buckets must be greater than zero")
 	}
 
 	b := &AsyncBatcher[Item]{
-		size:  size,
-		count: -1,
-		wg:    &sync.WaitGroup{},
+		size:    batch,
+		count:   -1,
+		wg:      &sync.WaitGroup{},
+		buckets: make([]*asyncBatchItems[Item], buckets),
 	}
 
-	for i := 0; i < len(b.batches); i++ {
+	for i := 0; i < len(b.buckets); i++ {
 		i := i
 
-		b.batches[i] = &asyncBatchItems[Item]{
-			items:  make([]Item, 0, size),
+		b.buckets[i] = &asyncBatchItems[Item]{
+			items:  make([]Item, 0, batch),
 			mux:    sync.Mutex{},
 			timer:  acquireTimer(timeout),
 			fullCh: make(chan struct{}, 1),
@@ -52,7 +56,7 @@ func NewAsync[Item any](size int64, timeout time.Duration, batchFunc AsyncBatchF
 		b.wg.Add(1)
 		go func() {
 			defer b.wg.Done()
-			collect(b.batches[i], size, timeout, batchFunc)
+			collect(b.buckets[i], batch, timeout, batchFunc)
 		}()
 	}
 
@@ -63,7 +67,7 @@ func (b *AsyncBatcher[Item]) Batch(item Item) error {
 	idx := atomic.AddInt64(&b.count, 1)
 	batchIdx := (idx / b.size) % 100
 
-	bi := b.batches[batchIdx]
+	bi := b.buckets[batchIdx]
 
 	bi.mux.Lock()
 	defer bi.mux.Unlock()
@@ -86,8 +90,8 @@ func (b *AsyncBatcher[Item]) Batch(item Item) error {
 }
 
 func (b *AsyncBatcher[Item]) Shutdown(ctx context.Context) error {
-	for i := range b.batches {
-		close(b.batches[i].fullCh)
+	for i := range b.buckets {
+		close(b.buckets[i].fullCh)
 	}
 
 	stoppedCh := make(chan struct{})

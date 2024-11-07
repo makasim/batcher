@@ -9,7 +9,7 @@ import (
 
 func BenchmarkAsyncBatcher_BatchSizeOne(b *testing.B) {
 
-	bb := batcher.NewAsync[int](1, time.Millisecond*100, func(items []int) {
+	bb := batcher.NewAsync[int](1, 100, time.Millisecond*100, func(items []int) {
 	})
 
 	b.SetParallelism(10)
@@ -22,7 +22,7 @@ func BenchmarkAsyncBatcher_BatchSizeOne(b *testing.B) {
 }
 
 func BenchmarkAsyncBatcher_BatchSizeTwo(b *testing.B) {
-	bb := batcher.NewAsync[int](2, time.Millisecond*100, func(items []int) {
+	bb := batcher.NewAsync[int](2, 100, time.Millisecond*100, func(items []int) {
 
 	})
 
@@ -36,7 +36,7 @@ func BenchmarkAsyncBatcher_BatchSizeTwo(b *testing.B) {
 }
 
 func BenchmarkAsyncBatcher_BatchSizeThree(b *testing.B) {
-	bb := batcher.NewAsync[int](3, time.Millisecond*100, func(items []int) {
+	bb := batcher.NewAsync[int](3, 100, time.Millisecond*100, func(items []int) {
 
 	})
 
@@ -50,7 +50,7 @@ func BenchmarkAsyncBatcher_BatchSizeThree(b *testing.B) {
 }
 
 func BenchmarkAsyncBatcher_BatchSizeFive(b *testing.B) {
-	bb := batcher.NewAsync[int](5, time.Millisecond*100, func(items []int) {
+	bb := batcher.NewAsync[int](5, 100, time.Millisecond*100, func(items []int) {
 
 	})
 
@@ -64,7 +64,7 @@ func BenchmarkAsyncBatcher_BatchSizeFive(b *testing.B) {
 }
 
 func BenchmarkAsyncBatcher_BatchSizeTen(b *testing.B) {
-	bb := batcher.NewAsync[int](10, time.Millisecond*100, func(items []int) {
+	bb := batcher.NewAsync[int](10, 100, time.Millisecond*100, func(items []int) {
 
 	})
 
@@ -78,7 +78,7 @@ func BenchmarkAsyncBatcher_BatchSizeTen(b *testing.B) {
 }
 
 func BenchmarkAsyncBatcher_BatchSizeTwenty(b *testing.B) {
-	bb := batcher.NewAsync[int](20, time.Millisecond*100, func(items []int) {
+	bb := batcher.NewAsync[int](20, 100, time.Millisecond*100, func(items []int) {
 
 	})
 
@@ -92,7 +92,7 @@ func BenchmarkAsyncBatcher_BatchSizeTwenty(b *testing.B) {
 }
 
 func BenchmarkAsyncBatcher_BatchSizeThirty(b *testing.B) {
-	bb := batcher.NewAsync[int](30, time.Millisecond*100, func(items []int) {
+	bb := batcher.NewAsync[int](30, 100, time.Millisecond*100, func(items []int) {
 
 	})
 

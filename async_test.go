@@ -14,14 +14,14 @@ import (
 func TestAsyncBatcher(main *testing.T) {
 	main.Run("ZeroSize", func(t *testing.T) {
 		require.PanicsWithValue(t, `size must be greater than zero`, func() {
-			batcher.NewAsync[int](0, time.Second*60, func(items []int) {})
+			batcher.NewAsync[int](0, 100, time.Second*60, func(items []int) {})
 		})
 	})
 
 	main.Run("BatchOne", func(t *testing.T) {
 		resultCh := make(chan []int, 10)
 
-		b := batcher.NewAsync[int](1, time.Second*60, func(items []int) {
+		b := batcher.NewAsync[int](1, 100, time.Second*60, func(items []int) {
 			resultCh <- append([]int(nil), items...)
 		})
 		defer func() {
@@ -45,7 +45,7 @@ func TestAsyncBatcher(main *testing.T) {
 	main.Run("BatchTwo", func(t *testing.T) {
 		resultCh := make(chan []int, 10)
 
-		b := batcher.NewAsync[int](2, time.Second*60, func(items []int) {
+		b := batcher.NewAsync[int](2, 100, time.Second*60, func(items []int) {
 			resultCh <- append([]int(nil), items...)
 		})
 		defer func() {
@@ -74,7 +74,7 @@ func TestAsyncBatcher(main *testing.T) {
 	main.Run("BatchFive", func(t *testing.T) {
 		resultCh := make(chan []int, 10)
 
-		b := batcher.NewAsync[int](5, time.Second*60, func(items []int) {
+		b := batcher.NewAsync[int](5, 100, time.Second*60, func(items []int) {
 			resultCh <- append([]int(nil), items...)
 		})
 		defer func() {
@@ -98,7 +98,7 @@ func TestAsyncBatcher(main *testing.T) {
 	main.Run("BatchTen", func(t *testing.T) {
 		resultCh := make(chan []int, 10)
 
-		b := batcher.NewAsync[int](10, time.Second*60, func(items []int) {
+		b := batcher.NewAsync[int](10, 100, time.Second*60, func(items []int) {
 			resultCh <- append([]int(nil), items...)
 		})
 		defer func() {
@@ -152,11 +152,11 @@ func TestAsyncBatcher(main *testing.T) {
 	main.Run("ErrBufferOverflow", func(t *testing.T) {
 		releaseCh := make(chan struct{})
 
-		b := batcher.NewAsync[int](1, time.Second*60, func(items []int) {
+		b := batcher.NewAsync[int](1, 100, time.Second*60, func(items []int) {
 			<-releaseCh
 		})
 
-		// 100 is internal batches size
+		// 100 is internal buckets size
 		// first 100 goes to collect and blocks in batchFunc
 		// second 100 goes to batchCh and blocks there
 		var err error
@@ -177,7 +177,7 @@ func TestAsyncBatcher(main *testing.T) {
 	main.Run("CollectTimeout", func(t *testing.T) {
 		resultCh := make(chan []int, 10)
 
-		b := batcher.NewAsync[int](3, time.Millisecond*200, func(items []int) {
+		b := batcher.NewAsync[int](3, 100, time.Millisecond*200, func(items []int) {
 			resultCh <- append([]int(nil), items...)
 		})
 
@@ -211,7 +211,7 @@ func TestAsyncBatcher(main *testing.T) {
 	main.Run("ShutdownGraceful", func(t *testing.T) {
 		resultCh := make(chan []int, 10)
 
-		b := batcher.NewAsync[int](3, time.Second*30, func(items []int) {
+		b := batcher.NewAsync[int](3, 100, time.Second*30, func(items []int) {
 			time.Sleep(time.Millisecond * 500)
 			resultCh <- append([]int(nil), items...)
 		})
@@ -246,7 +246,7 @@ func TestAsyncBatcher(main *testing.T) {
 	main.Run("ShutdownGraceful2", func(t *testing.T) {
 		resultCh := make(chan []int, 10)
 
-		b := batcher.NewAsync[int](2, time.Second*30, func(items []int) {
+		b := batcher.NewAsync[int](2, 100, time.Second*30, func(items []int) {
 			time.Sleep(time.Millisecond * 200)
 			resultCh <- append([]int(nil), items...)
 		})
@@ -265,7 +265,7 @@ func TestAsyncBatcher(main *testing.T) {
 	main.Run("ShutdownTimeout", func(t *testing.T) {
 		releaseCh := make(chan struct{})
 
-		b := batcher.NewAsync[int](1, time.Second*60, func(items []int) {
+		b := batcher.NewAsync[int](1, 100, time.Second*60, func(items []int) {
 			<-releaseCh
 		})
 
