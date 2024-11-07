@@ -19,7 +19,7 @@ func TestAsyncBatcher(main *testing.T) {
 	})
 
 	main.Run("ZeroBucket", func(t *testing.T) {
-		require.PanicsWithValue(t, `bucket must be greater than zero`, func() {
+		require.PanicsWithValue(t, `buckets must be greater than zero`, func() {
 			batcher.NewAsync[int](1, 0, time.Second*60, func(items []int) {})
 		})
 	})
