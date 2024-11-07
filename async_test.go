@@ -12,9 +12,15 @@ import (
 )
 
 func TestAsyncBatcher(main *testing.T) {
-	main.Run("ZeroSize", func(t *testing.T) {
-		require.PanicsWithValue(t, `size must be greater than zero`, func() {
+	main.Run("ZeroBatch", func(t *testing.T) {
+		require.PanicsWithValue(t, `batch must be greater than zero`, func() {
 			batcher.NewAsync[int](0, 100, time.Second*60, func(items []int) {})
+		})
+	})
+
+	main.Run("ZeroBucket", func(t *testing.T) {
+		require.PanicsWithValue(t, `bucket must be greater than zero`, func() {
+			batcher.NewAsync[int](1, 0, time.Second*60, func(items []int) {})
 		})
 	})
 
