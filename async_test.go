@@ -186,6 +186,9 @@ func TestAsyncBatcher(main *testing.T) {
 		b := batcher.NewAsync[int](3, 100, time.Millisecond*200, func(items []int) {
 			resultCh <- append([]int(nil), items...)
 		})
+		defer func() {
+			require.NoError(t, b.Shutdown(ctx100ms(t)))
+		}()
 
 		results := make([][]int, 0)
 

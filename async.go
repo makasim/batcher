@@ -3,6 +3,7 @@ package batcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,7 +16,6 @@ type AsyncBatchFunc[Item any] func(items []Item)
 type asyncBatchItems[Item any] struct {
 	items  []Item
 	mux    sync.Mutex
-	timer  *time.Timer
 	fullCh chan struct{}
 }
 
@@ -46,17 +46,18 @@ func NewAsync[Item any](batch int64, buckets int, timeout time.Duration, batchFu
 	for i := 0; i < len(b.buckets); i++ {
 		i := i
 
+		fullCh := make(chan struct{}, 1)
+
 		b.buckets[i] = &asyncBatchItems[Item]{
 			items:  make([]Item, 0, batch),
 			mux:    sync.Mutex{},
-			timer:  acquireTimer(timeout),
-			fullCh: make(chan struct{}, 1),
+			fullCh: fullCh,
 		}
 
 		b.wg.Add(1)
 		go func() {
 			defer b.wg.Done()
-			collect(b.buckets[i], batch, timeout, batchFunc)
+			collect(b.buckets[i], fullCh, batch, timeout, batchFunc)
 		}()
 	}
 
@@ -71,6 +72,10 @@ func (b *AsyncBatcher[Item]) Batch(item Item) error {
 
 	bi.mux.Lock()
 	defer bi.mux.Unlock()
+
+	if bi.fullCh == nil {
+		return fmt.Errorf("batcher is closed")
+	}
 
 	if len(bi.items) >= cap(bi.items) {
 		return ErrBufferFull
@@ -90,8 +95,11 @@ func (b *AsyncBatcher[Item]) Batch(item Item) error {
 }
 
 func (b *AsyncBatcher[Item]) Shutdown(ctx context.Context) error {
-	for i := range b.buckets {
-		close(b.buckets[i].fullCh)
+	for _, bi := range b.buckets {
+		bi.mux.Lock()
+		close(bi.fullCh)
+		bi.fullCh = nil
+		bi.mux.Unlock()
 	}
 
 	stoppedCh := make(chan struct{})
@@ -108,9 +116,11 @@ func (b *AsyncBatcher[Item]) Shutdown(ctx context.Context) error {
 	}
 }
 
-func collect[Item any](bi *asyncBatchItems[Item], size int64, timeout time.Duration, wbf AsyncBatchFunc[Item]) {
+func collect[Item any](bi *asyncBatchItems[Item], fullCh chan struct{}, size int64, timeout time.Duration, wbf AsyncBatchFunc[Item]) {
 	items := make([]Item, 0, size)
 	var exit bool
+
+	timer := acquireTimer(timeout)
 
 	for {
 		if exit {
@@ -118,8 +128,8 @@ func collect[Item any](bi *asyncBatchItems[Item], size int64, timeout time.Durat
 		}
 
 		select {
-		case <-bi.timer.C:
-		case _, ok := <-bi.fullCh:
+		case <-timer.C:
+		case _, ok := <-fullCh:
 			if !ok {
 				exit = true
 			}
@@ -131,9 +141,10 @@ func collect[Item any](bi *asyncBatchItems[Item], size int64, timeout time.Durat
 			copy(items, bi.items)
 			bi.items = bi.items[:0]
 		}
-		releaseTimer(bi.timer)
-		bi.timer = acquireTimer(timeout)
 		bi.mux.Unlock()
+
+		releaseTimer(timer)
+		timer = acquireTimer(timeout)
 
 		if len(items) > 0 {
 			wbf(items)
